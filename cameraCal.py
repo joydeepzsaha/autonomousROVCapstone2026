@@ -72,8 +72,6 @@ def doCalibration(filepath):
 
     #Extract image data
     for fname in images:
-        print(fname)
-
         img = cv2.imread(fname)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
@@ -81,17 +79,22 @@ def doCalibration(filepath):
 
         corners = results[0]; markerIds = results[1]
         if(corners is not None and markerIds is not None):
-            print("true")
             object_points, image_points = board.matchImagePoints(corners, markerIds)
-            totalObjPnts.append(object_points)
-            totalImgPnts.append(image_points)
+            if (len(object_points) >= 10 and len(image_points) == len(object_points)):
+                # print("true", fname)
+                object_points = object_points.reshape(-1, 3).astype(np.float32) #convert to 2d arr
+                image_points  = image_points.reshape(-1, 2).astype(np.float32)
+                totalObjPnts.append(object_points)
+                totalImgPnts.append(image_points)
 
-    
+    h, w = gray.shape
+    image_size = (int(w), int(h))   # width, height openCV needs width height and gray shape is h,w
+
     if(len(totalImgPnts) == len(totalObjPnts) and len(totalImgPnts) != 0):
         ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(
-                totalObjPnts[0],
-                totalImgPnts[0],
-                gray.shape,
+                totalObjPnts,
+                totalImgPnts,
+                image_size,
                 None,
                 None
             )
@@ -111,9 +114,10 @@ def main():
     userIn = input()
     captureImages(userIn, filepath)
     time.sleep(1)
-    # ret, mtx, dist, rvecs, tvecs = doCalibration("C:\\Class\\CAPSTONE\\frontLights\\*")
-    # print(f"Calibration complete:\n ret{ret},\n camera matrix: {mtx},\n distortion coeffs: {dist},\n rotation and translation vecs {rvecs}, {tvecs}")
-    # return ret, mtx, dist, rvecs, tvecs
+    ret, mtx, dist, rvecs, tvecs = doCalibration(f"{filepath}\\*")
+    print(f"Calibration complete:\n ret{ret},\n camera matrix: {mtx},\n distortion coeffs: {dist}")#\n rotation and translation vecs {rvecs}, {tvecs}")
+    np.savez('camera_calibration.npz', mtx=mtx, dist=dist) 
+    return ret, mtx, dist, rvecs, tvecs
 
 
 #Actually run the script

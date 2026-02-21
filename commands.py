@@ -83,15 +83,15 @@ class Robot:
         self.robot.target_component,
         mavutil.mavlink.MAV_CMD_REQUEST_MESSAGE,
         0,
-        mavutil.mavlink.MAVLINK_MSG_ID_SCALED_PRESSURE,
+        137,
         0, 0, 0, 0, 0, 0
     )
-        msg = self.robot.recv_match(type='SCALED_PRESSURE', blocking=False)
-
+        msg = self.robot.recv_match(type='SCALED_PRESSURE2', blocking=True)
         if msg:
             pressure = msg.press_abs
+            print(pressure)
             depth = (pressure - 1013.25) / 98.0665
-            print(f"Depth: {depth:.2f} m")
+            # print(f"Depth: {depth:.3f} m")
             return depth
         else:
             print("No response received")

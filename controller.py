@@ -6,6 +6,9 @@ import PID
 import random
 import numpy as np
 import pylab as plt
+import camera
+import multiprocessing as mp
+import cv2
  
 
 RUN_MODE = {
@@ -26,53 +29,95 @@ STATUS = {'INIT', 'SEARCH', 'APPROACH', 'ALIGN', 'ATTACH', 'DONE'}
 
 ## Initialize robot , then do a small descend
 rov = commands.Robot()
-# rov.calibrateDepth()
+cam = camera.camera()
+cam.loadCameraSettings()
+rov.calibrateDepth()
 
-while(1):
-    rov.grabDepth()
-    time.sleep(0.5)
+# while(1):
+#     rov.grabDepth()
+#     time.sleep(0.5)
+
 
 #PWM limits 1100-1900
-zTarg = -1
 xtarg = 0
 yTarg = 0
-headingTarg = 0
+zTarg = 1500
+
+yawTarget = 90
+
+fwdPWM = 0
+
+
+x= 0; y= 0; z= 10
+headingTarg = 90
 rollTarg = 0
 tol = 2
-tf = 2
+tf = 30
 t0 = time.monotonic()
+# rov.disarmRobot()
 
-vertPID = PID.PID(kp=1e-2, ki=0, kd= 0, target=0)
+
+
+xPID = PID.PID(kp=-3e-1, ki=0, kd= -1e-5, target=xtarg)
+yPID = PID.PID(kp=1e-1, ki=0, kd= 0, target=yTarg)
+zPID = PID.PID(kp=1e-1, ki= 0, kd= 0, target=zTarg)
+yawPID = PID.PID(kp=1.2, ki= 0, kd= 1.2, target=yawTarget, pwm_min=1420, pwm_max=1580)
+
+
 STATUS = 'INIT'
 
-# while(time.monotonic() - t0 < tf):
-#     match(STATUS):
-#         case 'INIT':
-#             mtx, dist = commands.loadCameraSettings()
-#             rov.armRobot()
-#             rov.setGain(0.3)
-#             rov.setMode('MANUAL')
-#             rov.lightsOn()
-#             vertPID.update_target(zTarg)
-#             if(commands.poseEstimate is not None):
-#                 STATUS = 'ALIGN'
-#             STATUS = 'SEARCH'
-#         case 'SEARCH':
-#             meas = rov.grabDepth()
-#             vertPWM = vertPID.update(meas)
-#             rov.goVertical(vertPWM)
-#             if(vertPID.atTarget(meas)):
-#                 STATUS = 'DONE'
-#             STATUS = STATUS
-#         case 'APPROACH':
-#             STATUS = 'ALIGN'
-#         case 'ALIGN':
-#             STATUS = 'ATTACH'
-#         case 'ATTACH':
-#             STATUS = 'DONE'
-#         case 'DONE':
-#             print('done')
-#             rov.disarmRobot()
+while((time.monotonic() - t0) < tf):
+    # k = cv2.waitKey(1)
+    # if k%256 == 27:
+    #     # ESC pressed
+    #     print("Escape hit, closing...")
+    #     break
+# while(1):
+    match(STATUS):
+        case 'INIT':
+            rov.armRobot()
+            rov.setGain(0.2)
+            rov.setMode('MANUAL')
+            rov.lightsOff()
+            pos = cam.getPos()
+            if(pos is not None):
+                STATUS = 'APPROACH'
+            STATUS = 'SEARCH'
+        case 'SEARCH':
+            pos = cam.getPos()
+            if(pos is not None):
+                x, y, z, rot = pos
+                # x = x*1e3; y =y*1e3; z=z*1e3
+            #     xtarg = x+1
+            #     yTarg = y+1
+            #     zTarg = z+1
+            #     print('ztarg', zTarg)
+
+                # xPID.updateTarget(xtarg); yPID.updateTarget(yTarg); zPID.updateTarget(zTarg)
+            STATUS = 'APPROACH'
+        case 'APPROACH':
+            # print("APP")
+            pos = cam.getPos()
+            if(pos is not None):
+                x, y, z, rot = pos
+                # x = x*1e3; y =y*1e3; z=z*1e3
+                # print("z", z)
+            print("angle:", np.rad2deg(np.atan2(z, x)))
+            # print("X and Z:", x, z)
+            rov.turn(yawPID.update(np.rad2deg(np.atan2(z, x))));# rov.goVertical(yPID.update(y)); rov.goForward(zPID.update(z))
+            # rov.goForward(zPID.update(z))
+                # time.sleep(1e-1)
+            STATUS = STATUS
+        case 'ALIGN':
+            STATUS = 'ATTACH'
+        case 'ATTACH':
+            STATUS = 'DONE'
+        case 'DONE':
+            print('done')
+            rov.disarmRobot()
+# print("DisarmingRobot")
+rov.disarmRobot()
+cam.release()
 
 
 

@@ -1,13 +1,15 @@
 import time
+import numpy as np
 
 class PID:
-    def __init__(self, kp, ki, kd, target=0.0, tol = 0.1,
+    def __init__(self, kp=0, ki=0, kd=0, target=0.0, tol = 0.1,
                  pwm_min=1100, pwm_max = 1900, pwm_trim = 100):
         self.kp = kp
         self.ki = ki
         self.kd = kd
         self.target = target
         self.tol = tol
+        self.pwm = 1500
         
         self.integral = 0.0
         self.prev_error = 0.0
@@ -19,10 +21,10 @@ class PID:
 
         self.integral_lim = 500
 
-    def update_target(self, target):
+    def updateTarget(self, target):
         self.target = target
     
-    def update_tol(self, tol):
+    def updateTol(self, tol):
         self.tol = tol
 
     def atTarget(self, measurement):
@@ -56,11 +58,23 @@ class PID:
             self.kd * derivative
         )
         
-        pwm = self.pwm_trim + b
+        self.pwm = 1500 + b
+        delta = 1500 - self.pwm
+
+        # if(np.abs(delta) < 10):
+        #     self.pwm = 1500
+        # if(np.abs(delta) > 10):
+        #     if(delta > 0):
+        #         self.pwm = self.pwm - 20
+        #     else:
+        #         self.pwm = self.pwm + 20
+
         #Keep it between 1100, 1900
-        pwm = max(min(pwm, self.pwm_max), self.pwm_min)
+
+        self.pwm = max(min(self.pwm, self.pwm_max), self.pwm_min)
 
         # Store for next step
         self.prev_error = error
         # return output
-        return int(pwm)
+        print(int(self.pwm))
+        return int(self.pwm)

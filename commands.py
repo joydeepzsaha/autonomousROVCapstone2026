@@ -31,6 +31,9 @@ def initConnection():
     return connection
 
 class Robot:
+    xVel = 0
+    yVel = 0
+    zVel = 0
     def __init__(self):
         self.robot = initConnection()
         pass
@@ -91,17 +94,44 @@ class Robot:
             pressure = msg.press_abs
             print(pressure)
             depth = (pressure - 1013.25) / 98.0665
-            # print(f"Depth: {depth:.3f} m")
-            return depth
+            print(f"Depth: {depth:.3f} m")
+            return
         else:
             print("No response received")
             return None
+    
+    def grabIMU(self):
+        self.robot.mav.command_long_send(
+        self.robot.target_system,
+        self.robot.target_component,
+        mavutil.mavlink.MAV_CMD_REQUEST_MESSAGE,
+        0,
+        26,
+        0, 0, 0, 0, 0, 0
+    )
         
+        msg = self.robot.recv_match(type='SCALED_IMU', blocking=True)
+        if msg:
+            xacc = msg.xacc; yacc= msg.yacc; zacc = msg.zacc
+            xgryo = msg.xgyro; ygryo = msg.ygyro; zgyro = msg.zgyro
+            # xmag = msg.xmag; ymag = msg.ymag; zmag= msg.zmag
+            return xacc, yacc, zacc, xgryo, ygryo, zgyro
+        else:
+            print("No response received")
+            return None
+    
+    def updateVelocities(self):
+        xacc, yacc, zacc = self.grabIMU()
+        self.xVel += xacc; self.yVel += yacc; self.zVel += zacc
+        return self.xVel, self.yVel, self.zVel
 
     ##-----------------MOTION CONTROL----------------------
     ##-----------------------------------------------------
 
     def set_rc_channel_pwm(self, channel_id, pwm=1500):
+        # print("Running at", pwm)
+        if(pwm == 0):
+            pwm = 1500
         """ Set RC channel pwm value
         Args:
             channel_id (TYPE): Channel ID
@@ -121,7 +151,7 @@ class Robot:
             *rc_channel_values)  
 
 
-    def stopMotion(self):
+    def stopThruster(self):
         for i in range(1, 6):
             self.set_rc_channel_pwm(i, 1500)
 
@@ -134,7 +164,7 @@ class Robot:
         self.set_rc_channel_pwm(id, pwm)
 
     def turn(self, pwm):
-        id = channel.get("turn")
+        id = channel.get("yaw")
         self.set_rc_channel_pwm(id, pwm)
 
     def roll(self, pwm):
@@ -183,72 +213,5 @@ class Robot:
 
     def lightsOff(self):
         self.lights(1100)
-
-
-    ##-----------------OPENCV COMMANDS---------------------
-    ##-----------------------------------------------------
-
-def loadCameraSettings():
-    calibration_data = np.load('camera_calibration.npz')
-
-    # Access the individual arrays
-    mtx = calibration_data['mtx']
-    dist = calibration_data['dist'] 
-    return mtx, dist
-
-##Borrowed from stack overflow
-##https://stackoverflow.com/questions/76802576/how-to-estimate-pose-of-single-marker-in-opencv-python-4-8-0
-def my_estimatePoseSingleMarkers(corners, marker_size, mtx, distortion):
-    '''
-    This will estimate the rvec and tvec for each of the marker corners detected by:
-    corners, ids, rejectedImgPoints = detector.detectMarkers(image)
-    corners - is an array of detected corners for each detected marker in the image
-    marker_size - is the size of the detected markers
-    mtx - is the camera matrix
-    distortion - is the camera distortion matrix
-    RETURN list of rvecs, tvecs, and trash (so that it corresponds to the old estimatePoseSingleMarkers())
-    '''
-    marker_points = np.array([[-marker_size / 2, marker_size / 2, 0],
-                            [marker_size / 2, marker_size / 2, 0],
-                            [marker_size / 2, -marker_size / 2, 0],
-                            [-marker_size / 2, -marker_size / 2, 0]], dtype=np.float32)
-    trash = []
-    rvecs = []
-    tvecs = []
-    for c in corners:
-        nada, R, t = cv2.solvePnP(marker_points, c, mtx, distortion, False, cv2.SOLVEPNP_IPPE_SQUARE)
-        rvecs.append(R)
-        tvecs.append(t)
-        trash.append(nada)
-    return rvecs, tvecs, trash
-
-
-def poseEstimate(mtx, dist, img):
-    dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_APRILTAG_36H11)
-    params = cv2.aruco.DetectorParameters()
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    detector = cv2.aruco.ArucoDetector(dict, params)
-
-    corners, ids, rejected = detector.detectMarkers(gray)
-
-    if ids is not None:
-        cv2.aruco.drawDetectedMarkers(img, corners, ids)
-        rvec, tvec, _ = my_estimatePoseSingleMarkers(corners, 0.1, mtx, dist)
-        #time.sleep(1e-4) #can get rid of this maybe
-        return rvec, tvec
-    return None
-
-def rvecToMat(rvec):
-    matrix, _ = cv2.Rodrigues(rvec)
-    return matrix
-
-def createTransformationMatrix(rvec, tvec):
-    mat = rvecToMat(rvec)
-    return np.hstack((mat, tvec))
-
-def getPos():
-    rvec, tvec = poseEstimate()
-    mat = createTransformationMatrix(rvec, tvec)
-    mat = np.linalg.inv(mat)
 
 

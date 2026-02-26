@@ -75,6 +75,7 @@ while((time.monotonic() - t0) < tf):
 # while(1):
     match(STATUS):
         case 'INIT':
+            cam.startStream()
             rov.armRobot()
             rov.setGain(0.2)
             rov.setMode('MANUAL')

@@ -13,17 +13,19 @@ class camera:
     dist = 0
     markerSize = 127 #mm
     capture = None
+    streamOk = False
 
     def __init__(self):
         print("Creating camera object")
-        # os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_flags;tcp"
+        pass
 
-        self.capture = cv2.VideoCapture("rtsp://192.168.2.2:8554/video_stream__dev_video2")
-        if(self.capture.isOpened()):
-            pass
-        else:
-            print("error opening stream")
-            pass
+    def startStream(self):
+        try:
+            self.capture = cv2.VideoCapture("rtsp://192.168.2.2:8554/video_stream__dev_video2")
+            print("Stream found")
+            self.streamOk = True
+        except:
+            self.streamOk = False
 
     def loadCameraSettings(self):
         print("loading settings")
@@ -36,9 +38,11 @@ class camera:
 
 
     def getImg(self):
-        ret, frame = self.capture.read()
-        # cv2.imshow('test', frame)
-        return frame
+        if(self.streamOk):
+            ret, frame = self.capture.read()
+            return frame
+        else:
+            return None
     
     def release(self):
         self.capture.release()

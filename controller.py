@@ -9,7 +9,6 @@ import pylab as plt
 import camera
 import multiprocessing as mp
 import cv2
-from collections import deque
  
 
 RUN_MODE = {
@@ -57,8 +56,6 @@ tf = 30
 t0 = time.monotonic()
 # rov.disarmRobot()
 
-lastPositions = deque()
-lastPositions.maxlen = 1000
 
 
 xPID = PID.PID(kp=-3e-1, ki=0, kd= -1e-5, target=xtarg)
@@ -71,6 +68,14 @@ ref = []
 times = []
 pos = []
 
+
+# def directionError(current_deg, target_deg):
+
+#     #+ve clockwise, -ve: anticlockwise
+#     err = current_deg - target_deg
+#     if err > 180:z
+#         err -=360
+#     return err
 
 STATUS = 'INIT'
 
@@ -90,7 +95,6 @@ while((time.monotonic() - t0) < tf):
             pos = cam.getPos()
             if(pos is not None):
                 x, y, z, rot = pos
-                lastPositions.appendleft(pos[0:2])
             STATUS = 'APPROACH'
         case 'APPROACH':
             pos = cam.getPos()
@@ -120,8 +124,15 @@ def updateArrs(r, p, utx ,t):
     times.append(t)
 
 
+
+def updateArrs(r, p, utx ,t):
+    ref.append(r)
+    pos.append(p)
+    u.append(utx)
+    times.append(t)
+
+
 plt.plot(times, ref)
 plt.plot(u)
 plt.plot(pos)
 plt.show()
-

@@ -119,7 +119,43 @@ class Robot:
         else:
             print("No response received")
             return None
+        
+    # Not to be called when in the OSB pool 
+    def grabCompass(self):
+        msg = self.robot.recv_match( type = "VFR_HUD", blocking = True)
+        if msg is None:
+            return None
+        else:
+            msg.heading
     
+    def GetTotalAttitude(self):
+        msg = self.robot.recv_match(type='ATTITUDE', blocking=True)
+        if msg is None:
+            return None
+        
+        return{'roll': math.degrees(msg.roll)% 360,'pitch': math.degrees(msg.pitch)% 360,'yaw': math.degrees(msg.yaw)% 360,
+               'roll_rate' : math.degrees(msg.rollspeed),'pitch_rate': math.degrees(msg.pitchspeed),'yaw_rate': math.degrees(msg.yawspeed)}
+
+    #   A check that can be used later in open water testing. 
+    # def compass_IMU_crosscheck(self):
+    #     attitude = self.GetTotalAttitude()
+    #     compass = self.grabCompass()
+
+    #     imu_deg     = attitude['yaw']
+    #     compass_deg = float(compass)
+
+    #     if imu_deg is not None and compass_deg is not None:
+    #         raw_diff   = abs(imu_deg - compass_deg) % 360
+    #         divergence = min(raw_diff, 360 - raw_diff)
+
+    #         #Its just a random value, I chose 15 degs since it would allow for lesser error
+    #         if divergence > 15:
+    #             print(f"[COMPASS_WARN] imu={imu_deg:.1f} compass={compass_deg:.1f} div={divergence:.1f}")
+
+    #         return imu_deg, compass_deg, divergence
+        
+    #     return imu_deg, compass_deg
+
     def updateVelocities(self):
         xacc, yacc, zacc = self.grabIMU()
         self.xVel += xacc; self.yVel += yacc; self.zVel += zacc

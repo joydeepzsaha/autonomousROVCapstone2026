@@ -6,8 +6,6 @@ import cv2
 import os
 
 
-
-
 class camera:
     mtx = 0
     dist = 0
@@ -15,9 +13,14 @@ class camera:
     capture = None
     streamOk = False
 
-    def __init__(self):
+
+    def __init__(self, markerSize=127):
+        self.markerSize = markerSize
         print("Creating camera object")
         pass
+
+    def updateMarkerSize(self, size):
+        self.markerSize = size
 
     def startStream(self):
         try:

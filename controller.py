@@ -63,16 +63,15 @@ yPID = PID.PID(kp=1e-1, ki=0, kd= 0, target=yTarg)
 zPID = PID.PID(kp=1e-1, ki= 0, kd= 0, target=zTarg)
 yawPID = PID.PID(kp=1.2, ki= 0, kd= 1.2, target=yawTarget, pwm_min=1420, pwm_max=1580)
 
+u = []
+ref = []
+times = []
+pos = []
+
 
 STATUS = 'INIT'
 
 while((time.monotonic() - t0) < tf):
-    # k = cv2.waitKey(1)
-    # if k%256 == 27:
-    #     # ESC pressed
-    #     print("Escape hit, closing...")
-    #     break
-# while(1):
     match(STATUS):
         case 'INIT':
             cam.startStream()
@@ -88,26 +87,15 @@ while((time.monotonic() - t0) < tf):
             pos = cam.getPos()
             if(pos is not None):
                 x, y, z, rot = pos
-                # x = x*1e3; y =y*1e3; z=z*1e3
-            #     xtarg = x+1
-            #     yTarg = y+1
-            #     zTarg = z+1
-            #     print('ztarg', zTarg)
-
-                # xPID.updateTarget(xtarg); yPID.updateTarget(yTarg); zPID.updateTarget(zTarg)
             STATUS = 'APPROACH'
         case 'APPROACH':
-            # print("APP")
             pos = cam.getPos()
             if(pos is not None):
-                x, y, z, rot = pos
-                # x = x*1e3; y =y*1e3; z=z*1e3
-                # print("z", z)
-            print("angle:", np.rad2deg(np.atan2(z, x)))
-            # print("X and Z:", x, z)
-            rov.turn(yawPID.update(np.rad2deg(np.atan2(z, x))));# rov.goVertical(yPID.update(y)); rov.goForward(zPID.update(z))
-            # rov.goForward(zPID.update(z))
-                # time.sleep(1e-1)
+                x, y, z, rot = pos #this will be in the same units as the marker size in camera class
+            angle = np.rad2deg(np.atan2(z, x))
+            b = yawPID.update(angle)
+            updateArrs(headingTarg, angle, b, time.monotonic()-t0)
+            rov.turn(b)
             STATUS = STATUS
         case 'ALIGN':
             STATUS = 'ATTACH'
@@ -121,5 +109,15 @@ rov.disarmRobot()
 cam.release()
 
 
+def updateArrs(r, p, utx ,t):
+    ref.append(r)
+    pos.append(p)
+    u.append(utx)
+    times.append(t)
 
+
+plt.plot(times, ref)
+plt.plot(u)
+plt.plot(pos)
+plt.show()
 

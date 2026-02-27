@@ -9,6 +9,7 @@ import pylab as plt
 import camera
 import multiprocessing as mp
 import cv2
+from collections import deque
  
 
 RUN_MODE = {
@@ -56,6 +57,8 @@ tf = 30
 t0 = time.monotonic()
 # rov.disarmRobot()
 
+lastPositions = deque()
+lastPositions.maxlen = 1000
 
 
 xPID = PID.PID(kp=-3e-1, ki=0, kd= -1e-5, target=xtarg)
@@ -87,6 +90,7 @@ while((time.monotonic() - t0) < tf):
             pos = cam.getPos()
             if(pos is not None):
                 x, y, z, rot = pos
+                lastPositions.appendleft(pos[0:2])
             STATUS = 'APPROACH'
         case 'APPROACH':
             pos = cam.getPos()
